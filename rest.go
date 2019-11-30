@@ -69,18 +69,40 @@ func (a *App) handelEvent(w http.ResponseWriter, r *http.Request) {
 			user_data := event_data["display"].(string)
 			var user map[string]interface{}
 			json.Unmarshal([]byte(user_data), &user)
-			//u, _ := json.Marshal(user)
+			u, _ := json.Marshal(user)
+
+			// User role parsing
+			role := user["role"].(string)
+			id := user["id"].(string)
+			ep := "groups/" + id
+			if role == "user" {
+				ep = "users/" + id
+			}
 
 			// Filter data event
 			switch t := event_data["event"].(string); t {
-			case "joined", "leaving":
-				err := writeToLog(os.Getenv(EnvLogPath)+"/events.log", string(b))
+			case "joined":
+				err := postReq(ep, string(u))
+				if err != nil {
+					fmt.Println("Post Request Failed:", err)
+				}
+
+				err = writeToLog(os.Getenv(EnvLogPath)+"/events.log", string(b))
 				if err != nil {
 					fmt.Println("Log Failed:", err)
 				}
 				defer r.Body.Close()
-			default:
-				fmt.Println("no cases in switch")
+			case "leaving":
+				err := delReq(ep)
+				if err != nil {
+					fmt.Println("Del Request Failed:", err)
+				}
+
+				err = writeToLog(os.Getenv(EnvLogPath)+"/events.log", string(b))
+				if err != nil {
+					fmt.Println("Log Failed:", err)
+				}
+				defer r.Body.Close()
 			}
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"regexp"
 )
 
 func (a *App) handleProtocol(w http.ResponseWriter, r *http.Request) {
@@ -22,29 +23,36 @@ func (a *App) handleProtocol(w http.ResponseWriter, r *http.Request) {
 	user := msg["user"].(map[string]interface{})
 	u, _ := json.Marshal(user)
 
-	// Filter event
-	switch t := msg["type"].(string); t {
-	case "question", "camera":
-		role := user["role"].(string)
-		id := user["id"].(string)
-		ep := "groups/" + id
-		if role == "user" {
-			ep = "users/" + id
-		}
-		err := postReq(ep, string(u))
-		if err != nil {
-			fmt.Println("Post Request Failed:", err)
-		}
-	default:
-		fmt.Println("no cases in switch")
+	// User role parsing
+	role := user["role"].(string)
+	chk, err := regexp.MatchString(`^(user|group)$`, role)
+	if err != nil {
+		fmt.Println("Regexp Failed:", err)
 	}
 
-	// Write to log
-	err := writeToLog(os.Getenv(EnvLogPath)+"/protocol.log", string(b))
-	if err != nil {
-		fmt.Println("Log Failed:", err)
+	// Allow only user and group role
+	if chk == true {
+		id := user["id"].(string)
+		ep := role + "s/" + id
+
+		// Filter event
+		switch t := msg["type"].(string); t {
+		case "question", "camera":
+			err := postReq(ep, string(u))
+			if err != nil {
+				fmt.Println("Post Request Failed:", err)
+			}
+		default:
+			fmt.Println("no cases in switch")
+		}
+
+		// Write to log
+		err := writeToLog(os.Getenv(EnvLogPath)+"/protocol.log", string(b))
+		if err != nil {
+			fmt.Println("Log Failed:", err)
+		}
+		defer r.Body.Close()
 	}
-	defer r.Body.Close()
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
 }
@@ -73,36 +81,41 @@ func (a *App) handelEvent(w http.ResponseWriter, r *http.Request) {
 
 			// User role parsing
 			role := user["role"].(string)
-			id := user["id"].(string)
-			ep := "groups/" + id
-			if role == "user" {
-				ep = "users/" + id
+			chk, err := regexp.MatchString(`^(user|group)$`, role)
+			if err != nil {
+				fmt.Println("Regexp Failed:", err)
 			}
 
-			// Filter data event
-			switch t := event_data["event"].(string); t {
-			case "joined":
-				err := postReq(ep, string(u))
-				if err != nil {
-					fmt.Println("Post Request Failed:", err)
-				}
+			// Allow only user and group role
+			if chk == true {
+				id := user["id"].(string)
+				ep := role + "s/" + id
 
-				err = writeToLog(os.Getenv(EnvLogPath)+"/events.log", string(b))
-				if err != nil {
-					fmt.Println("Log Failed:", err)
-				}
-				defer r.Body.Close()
-			case "leaving":
-				err := delReq(ep)
-				if err != nil {
-					fmt.Println("Del Request Failed:", err)
-				}
+				// Filter data event
+				switch t := event_data["event"].(string); t {
+				case "joined":
+					err := postReq(ep, string(u))
+					if err != nil {
+						fmt.Println("Post Request Failed:", err)
+					}
 
-				err = writeToLog(os.Getenv(EnvLogPath)+"/events.log", string(b))
-				if err != nil {
-					fmt.Println("Log Failed:", err)
+					err = writeToLog(os.Getenv(EnvLogPath)+"/events.log", string(b))
+					if err != nil {
+						fmt.Println("Log Failed:", err)
+					}
+					defer r.Body.Close()
+				case "leaving":
+					err := delReq(ep)
+					if err != nil {
+						fmt.Println("Del Request Failed:", err)
+					}
+
+					err = writeToLog(os.Getenv(EnvLogPath)+"/events.log", string(b))
+					if err != nil {
+						fmt.Println("Log Failed:", err)
+					}
+					defer r.Body.Close()
 				}
-				defer r.Body.Close()
 			}
 		}
 	}

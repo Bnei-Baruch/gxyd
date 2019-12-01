@@ -20,10 +20,8 @@ func (a *App) handleProtocol(w http.ResponseWriter, r *http.Request) {
 	var msg map[string]interface{}
 	json.Unmarshal([]byte(text), &msg)
 
-	user := msg["user"].(map[string]interface{})
-	u, _ := json.Marshal(user)
-
 	// User role parsing
+	user := msg["user"].(map[string]interface{})
 	role := user["role"].(string)
 	chk, err := regexp.MatchString(`^(user|group)$`, role)
 	if err != nil {
@@ -38,6 +36,8 @@ func (a *App) handleProtocol(w http.ResponseWriter, r *http.Request) {
 		// Filter event
 		switch t := msg["type"].(string); t {
 		case "question", "camera":
+			user[t] = msg["status"]
+			u, _ := json.Marshal(user)
 			err := postReq(ep, string(u))
 			if err != nil {
 				fmt.Println("Post Request Failed:", err)
@@ -66,20 +66,17 @@ func (a *App) handelEvent(w http.ResponseWriter, r *http.Request) {
 	msg := data["event"].(map[string]interface{})
 	plugin := msg["plugin"].(string)
 
-	// Filter plugin events
+	// Filter videroom plugin events
 	if plugin == "janus.plugin.videoroom" {
 
-		event_data := msg["data"].(map[string]interface{})
-
 		// Check if property exist
+		event_data := msg["data"].(map[string]interface{})
 		if _, ok := event_data["event"].(string); ok {
 
+			// User role parsing
 			user_data := event_data["display"].(string)
 			var user map[string]interface{}
 			json.Unmarshal([]byte(user_data), &user)
-			u, _ := json.Marshal(user)
-
-			// User role parsing
 			role := user["role"].(string)
 			chk, err := regexp.MatchString(`^(user|group)$`, role)
 			if err != nil {
@@ -94,6 +91,7 @@ func (a *App) handelEvent(w http.ResponseWriter, r *http.Request) {
 				// Filter data event
 				switch t := event_data["event"].(string); t {
 				case "joined":
+					u, _ := json.Marshal(user)
 					err := postReq(ep, string(u))
 					if err != nil {
 						fmt.Println("Post Request Failed:", err)

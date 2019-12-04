@@ -35,7 +35,7 @@ func (a *App) handleProtocol(w http.ResponseWriter, r *http.Request) {
 
 		// Filter event
 		switch t := msg["type"].(string); t {
-		case "question", "camera":
+		case "enter", "question", "camera":
 			user[t] = msg["status"]
 			u, _ := json.Marshal(user)
 			err := postReq(ep, string(u))
@@ -69,9 +69,9 @@ func (a *App) handelEvent(w http.ResponseWriter, r *http.Request) {
 	// Filter videroom plugin events
 	if plugin == "janus.plugin.videoroom" {
 
-		// Check if property exist
+		// Check if user property exist
 		event_data := msg["data"].(map[string]interface{})
-		if _, ok := event_data["event"].(string); ok {
+		if _, ok := event_data["display"].(string); ok {
 
 			// User role parsing
 			user_data := event_data["display"].(string)
@@ -91,17 +91,17 @@ func (a *App) handelEvent(w http.ResponseWriter, r *http.Request) {
 				// Filter data event
 				switch t := event_data["event"].(string); t {
 				case "joined":
-					u, _ := json.Marshal(user)
-					err := postReq(ep, string(u))
-					if err != nil {
-						fmt.Println("Post Request Failed:", err)
-					}
+					//u, _ := json.Marshal(user)
+					//err := postReq(ep, string(u))
+					//if err != nil {
+					//	fmt.Println("Post Request Failed:", err)
+					//}
 
-					err = writeToLog(os.Getenv(EnvLogPath)+"/events.log", string(b))
-					if err != nil {
-						fmt.Println("Log Failed:", err)
-					}
-					defer r.Body.Close()
+					//err = writeToLog(os.Getenv(EnvLogPath)+"/events.log", string(b))
+					//if err != nil {
+					//	fmt.Println("Log Failed:", err)
+					//}
+					//defer r.Body.Close()
 				case "leaving":
 					err := delReq(ep)
 					if err != nil {

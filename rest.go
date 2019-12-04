@@ -20,40 +20,43 @@ func (a *App) handleProtocol(w http.ResponseWriter, r *http.Request) {
 	var msg map[string]interface{}
 	json.Unmarshal([]byte(text), &msg)
 
-	// User role parsing
-	user := msg["user"].(map[string]interface{})
-	role := user["role"].(string)
-	chk, err := regexp.MatchString(`^(user|group)$`, role)
-	if err != nil {
-		fmt.Println("Regexp Failed:", err)
-	}
+	// Check if user property exist
+	if _, ok := msg["user"].(map[string]interface{}); ok {
 
-	// Allow only user and group role
-	if chk == true {
-		id := user["id"].(string)
-		ep := role + "s/" + id
-
-		// Filter event
-		switch t := msg["type"].(string); t {
-		case "enter", "question", "camera":
-			user[t] = msg["status"]
-			u, _ := json.Marshal(user)
-			err := postReq(ep, string(u))
-			if err != nil {
-				fmt.Println("Post Request Failed:", err)
-			}
-		default:
-			fmt.Println("no cases in switch")
-		}
-
-		// Write to log
-		err := writeToLog(os.Getenv(EnvLogPath)+"/protocol.log", string(b))
+		// User role parsing
+		user := msg["user"].(map[string]interface{})
+		role := user["role"].(string)
+		chk, err := regexp.MatchString(`^(user|group)$`, role)
 		if err != nil {
-			fmt.Println("Log Failed:", err)
+			fmt.Println("Regexp Failed:", err)
 		}
-		defer r.Body.Close()
-	}
 
+		// Allow only user and group role
+		if chk == true {
+			id := user["id"].(string)
+			ep := role + "s/" + id
+
+			// Filter event
+			switch t := msg["type"].(string); t {
+			case "enter", "question", "camera":
+				user[t] = msg["status"]
+				u, _ := json.Marshal(user)
+				err := postReq(ep, string(u))
+				if err != nil {
+					fmt.Println("Post Request Failed:", err)
+				}
+			default:
+				fmt.Println("no cases in switch")
+			}
+
+			// Write to log
+			err := writeToLog(os.Getenv(EnvLogPath)+"/protocol.log", string(b))
+			if err != nil {
+				fmt.Println("Log Failed:", err)
+			}
+			defer r.Body.Close()
+		}
+	}
 	respondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
 }
 

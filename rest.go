@@ -38,8 +38,8 @@ func (a *App) handleProtocol(w http.ResponseWriter, r *http.Request) {
 
 			// Filter event
 			switch t := msg["type"].(string); t {
-			case "enter", "question", "camera":
-				user[t] = msg["status"]
+			case "sound-test", "enter", "question", "camera":
+				//user[t] = msg["status"]
 				u, _ := json.Marshal(user)
 				err := postReq(ep, string(u))
 				if err != nil {
